@@ -92,8 +92,7 @@ async def main():
                 msg.message = channel_info + (msg.message or '')
 
                 # ✅ 实际转发
-                # target_channel = config.target_channel
-                target_channel = 'https://t.me/ksir_6688'
+                target_channel = config.target_channel
                 await client.send_message(
                     target_channel,
                     msg.message,
