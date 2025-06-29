@@ -73,6 +73,12 @@ replacements = {
     '☎️ 投稿澄清爆料：@DNW8888': channel_info.contact,
     '🔔订阅东南亚大事件曝光-聚焦时事': channel_info.title,
 
+
+    # https://t.me/DNYba
+    '🔗https://t.me/dnyba': channel_info.url,
+    '☎️免费爆料 🥰广告合作：@FKabc': channel_info.contact,
+    '🔔订阅东南亚大事件频道': channel_info.title,
+
     # https://t.me/pueee
     # https://t.me/pyzxw
     # https://t.me/pyzcc
@@ -99,11 +105,6 @@ replacements = {
     '🔗 https://t.me/miandianDS': channel_info.url,
     '😍投稿澄清爆料： @QianQian106': channel_info.contact,
     '📣 订阅东南亚大事件频道  ↓': channel_info.title,
-
-    # https://t.me/DNYba
-    '🔗https://t.me/dnyba': channel_info.url,
-    '☎️免费爆料 🥰广告合作：@FKabc': channel_info.contact,
-    '🔔订阅东南亚大事件频道': channel_info.title,
 
     # https://t.me/dj17baoguang
     '➡️曝光频道：@dj17baoguang': channel_info.title,
