@@ -1,0 +1,86 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>关键词管理</title>
+  <!-- 本地引入 Bootstrap CSS -->
+  <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container py-4">
+    <h1 class="mb-4">关键词管理</h1>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card mb-4">
+          <div class="card-header">普通关键词</div>
+          <ul class="list-group list-group-flush">
+            {% for kw in keywords %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              {{ kw }}
+              <div>
+                <a href="{{ url_for('edit_keyword', kind='normal', idx=loop.index0) }}"
+                  class="btn btn-sm btn-outline-primary me-1">编辑</a>
+                <a href="{{ url_for('delete_keyword', kind='normal', idx=loop.index0) }}"
+                  class="btn btn-sm btn-outline-danger" onclick="return confirm('确定删除？');">删除</a>
+              </div>
+            </li>
+            {% else %}
+            <li class="list-group-item"><em>暂无普通关键词</em></li>
+            {% endfor %}
+          </ul>
+          <div class="card-body">
+            <form action="{{ url_for('add_keyword') }}" method="post" class="row g-2">
+              <!-- 指定为普通关键词 -->
+              <input type="hidden" name="kind" value="normal">
+              <div class="col">
+                <input type="text" name="keyword" class="form-control" placeholder="新普通关键词" required>
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-primary">添加</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card mb-4">
+          <div class="card-header">广告关键词</div>
+          <ul class="list-group list-group-flush">
+            {% for kw in ad_keywords %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              {{ kw }}
+              <div>
+                <a href="{{ url_for('edit_keyword', kind='ad', idx=loop.index0) }}"
+                  class="btn btn-sm btn-outline-primary me-1">编辑</a>
+                <a href="{{ url_for('delete_keyword', kind='ad', idx=loop.index0) }}"
+                  class="btn btn-sm btn-outline-danger" onclick="return confirm('确定删除？');">删除</a>
+              </div>
+            </li>
+            {% else %}
+            <li class="list-group-item"><em>暂无广告关键词</em></li>
+            {% endfor %}
+          </ul>
+          <div class="card-body">
+            <form action="{{ url_for('add_keyword') }}" method="post" class="row g-2">
+              <input type="hidden" name="kind" value="ad">
+              <div class="col">
+                <input type="text" name="keyword" class="form-control" placeholder="新广告关键词" required>
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-primary">添加</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 本地引入 Bootstrap JS -->
+  <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+
+</html>

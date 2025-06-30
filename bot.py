@@ -1,12 +1,31 @@
 import logging
 import json
 import re
+import os
 import config
 import functools
 import traceback
+import asyncio
 
+from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
 from telethon import TelegramClient, events
+
+
+def load_keywords(path: str) -> list[str]:
+    """读取关键词，支持两种 JSON 格式：列表或 {"keywords": [...]}"""
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        # logging.warning(f"⚠️ 关键词文件未找到：{path}")
+        return []
+    # 这里把 data 放进 f-string，以避免类型不匹配
+    # logging.info(f"⚠️ 文件 {path} 内容: {data!r}")
+    if isinstance(data, list):
+        return data
+    return data.get("keywords", [])
+
 
 def safe_handler(func):
     @functools.wraps(func)
@@ -14,27 +33,26 @@ def safe_handler(func):
         try:
             await func(event, *args, **kwargs)
         except Exception as e:
-            # 尝试取出最大量信息
             msg = getattr(event, "message", None)
             text = msg.message if msg and msg.message else "无消息文本"
-            
             try:
                 channel = await event.get_chat()
                 channel_title = channel.title or "未知"
                 channel_username = channel.username or "未知"
             except:
                 channel_title = channel_username = "未知"
-
             logging.error(
                 f"❌ 异常 | 来源：{channel_title} [{channel_username}] | "
                 f"内容：{text} | 错误：{e}\n{traceback.format_exc()}"
             )
     return wrapper
 
-# JSON 日志配置
+# ─── JSON 日志配置 ─────────────────────────────────────────────────────────
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-handler = TimedRotatingFileHandler("bot.log", when="midnight", interval=1, backupCount=30, encoding='utf-8')
+handler = TimedRotatingFileHandler(
+    "bot.log", when="midnight", interval=1, backupCount=30, encoding='utf-8'
+)
 handler.suffix = "%Y-%m-%d"
 class JsonFormatter(logging.Formatter):
     def format(self, record):
@@ -50,47 +68,150 @@ logger.addHandler(handler)
 console = logging.StreamHandler()
 console.setFormatter(json_formatter)
 logger.addHandler(console)
+# ─────────────────────────────────────────────────────────────────────────────
 
 client = TelegramClient(config.session_name, config.api_id, config.api_hash)
 
-@client.on(events.NewMessage(chats=config.source_channels))
-@safe_handler
-async def handler(event):
-    msg = event.message
+# ─── 合并发送缓冲区设置 ──────────────────────────────────────────────────────
+message_buffer = defaultdict(list)
+flush_tasks = {}
+suppressed_keys = set()  # 被广告清空后需跳过下一次合并
+BUFFER_TIME = 2.0
 
-    # 🚫 跳过广告关键词
-    #if any(k in msg.message for k in config.KEYWORDS):
-    #    logging.info(f"🚫 广告[{k}]跳过: {msg.message}")
-    #    return
-    for k in config.KEYWORDS:
-        if k in msg.message:
-            logging.info(f"🚫 广告[{k}]跳过: {msg.message}")
+async def flush_buffer(key):
+    """在 BUFFER_TIME 后合并并发送缓存的 Message，然后清理缓存和临时文件。"""
+    await asyncio.sleep(BUFFER_TIME)
+
+    # 如果该 key 因广告已被清空，则跳过本次合并
+    if key in suppressed_keys:
+        logging.info(f"⏭️ 因广告被清空，跳过合并转发 {key}")
+        suppressed_keys.discard(key)  # 清除标记
+        flush_tasks.pop(key, None)
+        message_buffer.pop(key, None)
+        return
+
+    msgs = message_buffer.pop(key, [])
+    flush_tasks.pop(key, None)
+    if not msgs:
+        return
+
+    # 合并所有文字
+    texts = [m.message.strip() for m in msgs if m.message and m.message.strip()]
+    combined_text = "\n".join(texts) if texts else None
+
+    # 打印调试信息，确保 combined_text 里有正确的内容
+    logging.debug(f"合并的文本内容：{combined_text}")
+
+    files = []
+    for m in msgs:
+        if m.media:
+            try:
+                path = await m.download_media(file='/tmp')
+                if path:
+                    files.append(path)
+            except Exception as e:
+                logging.error(f"下载媒体失败: {e}")
+
+    chat = await client.get_entity(key[0])
+    title = getattr(chat, "title", str(key[0]))
+    username = getattr(chat, "username", "")
+    prefix = f"来源：{title}[{username}]\n\n"
+
+    # 确保文本内容不为空并且存在
+    if combined_text:
+        # 确保有文件，则发送文件；没有文件时发送文本
+        try:
+            if files:
+                await client.send_file(
+                    config.target_channel,
+                    files,
+                    caption=prefix + combined_text
+                )
+            else:
+                await client.send_message(
+                    config.target_channel,
+                    prefix + combined_text
+                )
+            logging.info(f"✔️ 合并转发 {len(msgs)} 条消息，媒体数 {len(files)}")
+        except Exception as e:
+            logging.error(f"合并转发失败: {e}")
+
+    # 清理本地临时文件
+    for f in files:
+        try:
+            os.remove(f)
+        except: 
+            pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def main():
+    await client.start()
+    logging.info("✅ Client 已启动，准备获取频道实体")
+
+    entities = []
+    for ch in config.source_channels:
+        try:
+            ent = await client.get_entity(ch)
+            entities.append(ent)
+            logging.info(f"🎯 已获取实体: {ch}")
+        except Exception as e:
+            logging.error(f"⚠️ 无法获取频道 {ch}: {e}")
+
+    @client.on(events.NewMessage(chats=entities))
+    @safe_handler
+    async def handler(event):
+        m = event.message
+        if not (m.message or m.media):
             return
 
-    # 过滤关键字替换
-    for old, new in config.replacements.items():
-        msg.message = msg.message.replace(old, new)
-    # 过滤顽固关键字
-    for pattern, replacement in config.ad_replacements.items():
-        msg.message = re.sub(pattern, replacement, msg.message, flags=re.MULTILINE)
+        # —— 计算缓冲 key —— 
+        chat = await event.get_chat()
+        sender = await event.get_sender()
+        key = (chat.id, sender.id)
 
-    # 测试期间加入来源地，好对比数据
-    channel = await event.get_chat()
-    channel_title = channel.title or '未知'
-    channel_username = channel.username or '无短链'
-    channel_info = '来源：' + channel_title + '[' + channel_username + ']\n'
-    
-    msg.message = channel_info + msg.message
+        text = m.message or ""
+        # —— 广告过滤：匹配到即清空并取消合并 —— 
+        # 过滤广告关键词，文中有以下内容之一跳过
+        ad_keywords = load_keywords("ad_keywords.json")
+        for k in ad_keywords:
+            if k in text:
+                logging.info(f"🚫 广告[{k}]跳过，清空缓冲并取消合并任务 {key}")
+                task = flush_tasks.pop(key, None)
+                if task:
+                    task.cancel()
+                message_buffer.pop(key, None)
+                suppressed_keys.add(key)  # 只在广告时才加入 suppressed_keys
+                return
 
-    # ✅ 重新发送
-    await client.send_message(
-        config.target_channel,
-        msg.message,
-        file=msg.media
-    )
+        # —— 你的原有清洗与替换逻辑 —— 
+        text = re.sub(
+            r'^(?=.*https?://)(?!.*t\.me).*$', 
+            '', text, flags=re.MULTILINE
+        )
+        # 过滤关键词，行中有以下内容之一删除本行
+        del_keywords = load_keywords("keywords.json")
+        pattern = re.compile(
+            rf'^(?=.*(?:{"|".join(del_keywords)})).*$', 
+            re.MULTILINE
+        )
+        text, cnt = pattern.subn('', text)
+        if cnt >= 7:
+            return
+        text = re.sub(r'\n+', '\n', text).strip()
+        for old, new in config.replacements.items():
+            text = text.replace(old, new)
+        for pat, rep in config.ad_replacements.items():
+            text = re.sub(pat, rep, text, flags=re.MULTILINE)
 
-    logging.info(f"✔️ 已转发: {msg.message}")
+        m.message = text
+        message_buffer[key].append(m)
 
-client.start()
-print("📡 正在监听多个频道...")
-client.run_until_disconnected()
+        # 启动或复用定时合并任务
+        if key not in flush_tasks:
+            flush_tasks[key] = asyncio.create_task(flush_buffer(key))
+
+    logging.info("📡 正在监听多个频道...")
+    await client.run_until_disconnected()
+
+if __name__ == "__main__":
+    asyncio.run(main())

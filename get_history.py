@@ -71,35 +71,58 @@ async def main():
                 msg = message
                 text = msg.message or ''
 
-                # 🚫 跳过广告关键词
-                matched = next((k for k in config.KEYWORDS if k in text), None)
+                # 🚫 跳过广告页
+                matched = next((k for k in config.AD_KEYWORDS if k in text), None)
                 if matched:
                     logging.info(f"🚫 广告[{matched}]跳过: {text}")
                     continue  # 这里要 continue 只跳过本条
 
+                # 先删除含有 http(s):// 但不含 t.me 的整行
+                text = re.sub(
+                    r'^(?=.*https?://)(?!.*t\.me).*$', 
+                    '', 
+                    text, 
+                    flags=re.MULTILINE
+                )
+
+                # 再删除含有典型广告关键词的行
+                pattern_str = '|'.join(config.KEYWORDS)
+                pattern = re.compile(
+                    rf'^(?=.*(?:{pattern_str})).*$',
+                    re.MULTILINE
+                )
+                text, match_count = pattern.subn('', text)
+                # 多次匹配，判定为广告，跳过
+                if match_count >= 7:
+                    continue
+                logging.info(f"🚀广告匹配次数：{match_count}")
+
+                # 再清理多余的空行
+                text = re.sub(r'\n+', '\n', text).strip()
+
                 # 过滤替换
                 for old, new in config.replacements.items():
-                    if msg.message:
-                        msg.message = msg.message.replace(old, new)
+                    if text:
+                        text= text.replace(old, new)
                 for pattern, replacement in config.ad_replacements.items():
-                    if msg.message:
-                        msg.message = re.sub(pattern, replacement, msg.message, flags=re.MULTILINE)
+                    if text:
+                        text = re.sub(pattern, replacement, text, flags=re.MULTILINE)
 
                 # 拼接来源
                 channel_title = channel.title or '未知'
                 channel_username = channel.username or '无短链'
-                channel_info = f'来源：{channel_title}[{channel_username}]\n'
-                msg.message = channel_info + (msg.message or '')
+                channel_info = f'来源：{channel_title}[{channel_username}]\n\n'
+                text = channel_info + text
 
                 # ✅ 实际转发
                 target_channel = config.target_channel
                 await client.send_message(
                     target_channel,
-                    msg.message,
+                    text,
                     file=msg.media
                 )
-
-                logging.info(f"✔️ 已转发: {msg.message}")
+                
+                logging.info(f"✔️ 已转发: {text}")
 
                 # 采集一条休息一下
                 sleep_time = 30
