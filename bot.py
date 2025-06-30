@@ -11,6 +11,7 @@ import hashlib
 from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
 from telethon import TelegramClient, events
+from datetime import datetime
 
 
 def load_keywords(path: str) -> list[str]:
@@ -79,6 +80,40 @@ flush_tasks = {}
 suppressed_keys = set()  # 被广告清空后需跳过下一次合并
 BUFFER_TIME = 2.0
 
+async def download_message_with_unique_name(message, base_dir='/tmp'):
+    os.makedirs(base_dir, exist_ok=True)
+    timestamp = message.date.strftime("%Y%m%d_%H%M%S")
+    sender_id = message.sender_id or "unknown"
+
+    # 只决定后缀
+    ext = ".bin"
+    if message.document and message.document.mime_type:
+        # 尝试根据 MIME 猜测
+        if "video" in message.document.mime_type:
+            ext = ".mp4"
+        elif "image" in message.document.mime_type:
+            ext = ".jpg"
+        elif "pdf" in message.document.mime_type:
+            ext = ".pdf"
+    elif message.photo:
+        ext = ".jpg"
+    elif message.video:
+        ext = ".mp4"
+
+    # 不用原文件名
+    base_name = f"{timestamp}_{sender_id}"
+    file_path = os.path.join(base_dir, base_name + ext)
+
+    # 自定义递增后缀
+    counter = 1
+    while os.path.exists(file_path):
+        file_path = os.path.join(base_dir, f"{base_name}_{counter}{ext}")
+        counter += 1
+
+    # 下载
+    saved_path = await message.download_media(file=file_path)
+    return saved_path
+
 async def flush_buffer(key):
     """在 BUFFER_TIME 后合并并发送缓存的 Message，然后清理缓存和临时文件。"""
     await asyncio.sleep(BUFFER_TIME)
@@ -107,7 +142,8 @@ async def flush_buffer(key):
     for m in msgs:
         if m.media:
             try:
-                path = await m.download_media(file='/tmp')
+                # path = await m.download_media(file='/tmp')
+                path = await download_message_with_unique_name(m, base_dir='/tmp')
                 if path:
                     files.append(path)
             except Exception as e:
@@ -116,7 +152,7 @@ async def flush_buffer(key):
     chat = await client.get_entity(key[0])
     title = getattr(chat, "title", str(key[0]))
     username = getattr(chat, "username", "")
-    prefix = f"来源：{title}[{username}]\n\n"
+    prefix = f"来源：{title} 「{username}」\n\n\n"
 
     # 确保文本内容不为空并且存在
     if combined_text:

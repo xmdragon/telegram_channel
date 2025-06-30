@@ -182,7 +182,7 @@ replacements = {
     # https://t.me/dongnanya0027
     '🔗 https://t.me/dongnanya0027': channel_info.url,
     '☎️ 投稿澄清爆料：@DNW8888': channel_info.contact,
-    '🔔订阅东南亚大事件曝光-聚焦时事': channel_info.title,
+    '🔔订阅东南亚大事件曝光-聚焦时事': channel_info.title
 }
 
 # 广告过滤列表
