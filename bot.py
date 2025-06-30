@@ -6,6 +6,7 @@ import config
 import functools
 import traceback
 import asyncio
+import hashlib
 
 from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
@@ -119,6 +120,29 @@ async def flush_buffer(key):
 
     # 确保文本内容不为空并且存在
     if combined_text:
+        # combind_text取md5值
+        md5_hash = hashlib.md5(combined_text.encode('utf-8')).hexdigest()
+        # 从md5.txt文件中读取已发送的md5值
+        # 如果md5_hash在文件中，则不发送
+        # 如果不在文件中，则发送并将md5_hash写入文件
+        try:
+            with open(config.md5_file, 'r', encoding='utf-8') as f:
+                sent_hashes = f.read().splitlines()
+        except FileNotFoundError:
+            sent_hashes = []
+        if md5_hash in sent_hashes:
+            logging.info(f"⏭️ 已发送过的内容，跳过合并转发 {md5_hash}")
+            return
+        # 如果是新内容，则写入md5.txt
+        with open(config.md5_file, 'a', encoding='utf-8') as f:
+            f.write(md5_hash + '\n')
+        # md5.txt文件保留最近2000行
+        with open(config.md5_file, 'r+', encoding='utf-8') as f:
+            lines = f.readlines()
+            if len(lines) > 2000:
+                f.seek(0)
+                f.writelines(lines[-2000:])
+
         # 确保有文件，则发送文件；没有文件时发送文本
         try:
             if files:
@@ -195,6 +219,7 @@ async def main():
             re.MULTILINE
         )
         text, cnt = pattern.subn('', text)
+        # 如果删除行数超过 7 行，则视为广告，清空缓冲并取消合并任务
         if cnt >= 7:
             return
         text = re.sub(r'\n+', '\n', text).strip()
