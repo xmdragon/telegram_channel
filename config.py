@@ -25,6 +25,9 @@ channel_info = SimpleNamespace(
 # 你的 Telegram 用户 ID（整数）
 ADMIN_ID = 7776592210
 
+# 多个管理员 ID 列表，这些管理员收到投稿审核
+ADMIN_IDS = [7776592210, 5030659549]
+
 # @SEABigEvents_2025_bot
 # 你的机器人token
 BOT_TOKEN = '7905520524:AAF2NAh4vcJ24TbdnNhKb5QS8EeWN__xin8'
@@ -34,11 +37,14 @@ BOT_CHANNEL_USERNAME = '@bigeventsinsea'
 
 # 频道欢迎语
 BOT_WELCOME_TEXT = (
-        "👋 Welcome to 东南亚大事件「大曝光」投稿机器人"
-        "东南亚大事件「大曝光」频道专注于东南亚最新动态资讯，华人生活故事分享，"
-        "海海外华人求助，曝光不法份子，让你看尽海內外华人酸甜苦辣。"
-        f"📢 频道订阅：{BOT_CHANNEL_USERNAME}" 
-        "投稿要求：文案+图（限6张），提供有效证据，投稿免费，免费澄清，感谢配合。"
+        "👋 Welcome to 东南亚大事件「大曝光」投稿机器人\n"
+        "东南亚大事件「大曝光」频道专注于东南亚最新动态资讯，\n"
+        "华人生活故事分享，海外华人求助，曝光不法份子，\n"
+        "让你看尽海內外华人酸甜苦辣。\n"
+        f"📢 频道订阅：t.me/{BOT_CHANNEL_USERNAME}\n" 
+        "投稿要求：\n"
+        "        文案+图（限6张），提供有效证据，\n"
+        "        投稿免费，免费澄清，感谢配合。"
 )
 
 # ========================
