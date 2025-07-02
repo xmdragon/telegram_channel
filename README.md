@@ -80,6 +80,72 @@ pip install urllib3==1.26.15
 pip install python-telegram-bot SQLAlchemy APScheduler
 
 ```
+## 投稿机器人服务
+### 1. 确定环境与路径
+
+假设你的 Bot 项目放在 /root/telegram_bot/ 目录，虚拟环境在 /root/telegram_bot/venv/，入口脚本是 /root/telegram_bot/post.py。
+###　2. 编写 systemd 单元文件
+
+在 /etc/systemd/system/telegram_post.service 中创建并写入：
+``` ini
+[Unit]
+Description=Telegram 投稿机器人
+After=network.target
+
+[Service]
+Type=simple
+User=root
+# 如果你想用非 root 账号，改成对应的用户名
+WorkingDirectory=/root/telegram_post
+# 激活虚拟环境后执行脚本
+ExecStart=/root/telegram_bot/venv/bin/python3 /root/telegram_bot/post.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+注意
+
+    User= 可以改成你的系统普通用户，避免用 root 运行。
+
+    Restart=always 保证脚本意外退出后自动重启。
+
+    RestartSec=5 表示失败后 5 秒重启一次。
+
+### 3. 重新加载 systemd 并启用服务
+
+### 重新加载所有单元文件
+``` bash
+sudo systemctl daemon-reload
+```
+### 启动服务并查看状态
+``` bash
+sudo systemctl start telegram_post
+sudo systemctl status telegram_post
+```
+
+### 开机自启
+``` bash
+sudo systemctl enable telegram_post
+```
+
+如果 status 显示 running 并且没有错误日志，那么说明你的 Bot 已经作为服务在后台运行，并且会在每次开机时自动启动。
+### 4. 管理服务命令
+
+查看日志：
+``` bash
+sudo journalctl -u telegram_post -f
+```
+停止服务：
+``` bash
+sudo systemctl stop telegram_post
+```
+重启服务：
+``` bash
+sudo systemctl restart telegram_post
+```
 
 ## 网页维护广告关键词
 ``` bash
@@ -131,3 +197,4 @@ journalctl -u flaskapp -f
 ``` bash
 sudo systemctl restart flaskapp
 ```
+

@@ -14,23 +14,32 @@ target_channel = 'https://t.me/bigeventsinsea'
 
 # 替换关键字
 # 替换映射表
-channel_info = SimpleNamespace(    
-    title = '🔔 订阅东南亚大事件「曝光」',
+channel_info = SimpleNamespace(
+    title = '🔔 订阅东南亚大事件「大曝光」',
     url = '🔗  t.me/bigeventsinsea',
     short_url = 'bigeventsinsea',
     contact = '☎️ 投稿曝料：@stan0505',
-    author = '＠stan0505'
+    author = '@stan0505'
 )
+
+# 你的 Telegram 用户 ID（整数）
+ADMIN_ID = 7776592210
 
 # @SEABigEvents_2025_bot
 # 你的机器人token
 BOT_TOKEN = '7905520524:AAF2NAh4vcJ24TbdnNhKb5QS8EeWN__xin8'
-# 你的 Telegram 用户 ID（整数）
-ADMINS = [
-    7776592210
-]
+
 # 你的频道 username
 BOT_CHANNEL_USERNAME = '@bigeventsinsea'
+
+# 频道欢迎语
+BOT_WELCOME_TEXT = (
+        "👋 Welcome to 东南亚大事件「大曝光」投稿机器人"
+        "东南亚大事件「大曝光」频道专注于东南亚最新动态资讯，华人生活故事分享，"
+        "海海外华人求助，曝光不法份子，让你看尽海內外华人酸甜苦辣。"
+        f"📢 频道订阅：{BOT_CHANNEL_USERNAME}" 
+        "投稿要求：文案+图（限6张），提供有效证据，投稿免费，免费澄清，感谢配合。"
+)
 
 # ========================
 # 源频道列表
@@ -38,7 +47,7 @@ BOT_CHANNEL_USERNAME = '@bigeventsinsea'
 # ========================
 source_channels = [
     '@miandianDS',    # 1
-    '@pueee',         # 2
+    '@tx100',         # 2
     '@Spri1te3mr',    # 3
     '@bx666',         # 4
     '@dj17baoguang',  # 5
@@ -54,7 +63,7 @@ source_channels = [
     '@gaojing8888',   # 15
     '@CG887',         # 16
     '@tx175',         # 17
-    '@tx100',         # 18
+    '@pueee',         # 18
     '@ksir_6688'      # 19
 ]
 
@@ -66,20 +75,23 @@ replacements = {
     # https://t.me/miandianDS
     '🔗 https://t.me/miandianDS': channel_info.url,
     '😍投稿澄清爆料： @QianQian106': channel_info.contact,
+    '☎️ 欢迎投稿爆料： @QianQian106': channel_info.contact,
     '📣 订阅东南亚大事件频道  ↓': channel_info.title,
 
+
+
     # 2
-    # https://t.me/pueee
-    # https://t.me/pyzxw
-    # https://t.me/pyzcc
-    # https://t.me/pyzbg
-    '🔗 t.me/+UNWEBNeUmh84MDVl': channel_info.url,
-    '😍 投稿爆料联系：@Pyz22': channel_info.contact,
-    '🔔订阅东南亚大事件': channel_info.title,
-    '✅ 消息已收录到 @soso': '',
+    # https://t.me/tx100
+    # https://t.me/dongnanya0027
+    '🔗 https://t.me/dongnanya0027': channel_info.url,
+    '☎️ 投稿澄清爆料：@DNW8888': channel_info.contact,
+    '🔔订阅东南亚大事件曝光-聚焦时事': channel_info.title,
 
     # 3
     # https://t.me/Spri1te3mr
+    '🔍订阅&柬埔寨新闻/东南亚大事件': channel_info.title,
+    '🔍投稿爆料商务合作找小柚子': channel_info.url,
+    '🔍全球线上线下人工翻译找小柚子': channel_info.contact,
     '\n🔍订阅&柬埔寨新闻/东南亚大事件 (https://t.me/Spri1te3mr)': channel_info.title,
     '\n🔍投稿爆料商务合作找小柚子 (https://t.me/xyz662)💙': channel_info.url,
     '\n🔍全球线上线下人工翻译找小柚子 (https://t.me/xyz662)🍒': channel_info.contact,
@@ -178,11 +190,14 @@ replacements = {
     '😍trx能量：@trx523 (https://t.me/+X-RzESb5IJhkYmU1)': channel_info.contact,
 
     # 18
-    # https://t.me/tx100
-    # https://t.me/dongnanya0027
-    '🔗 https://t.me/dongnanya0027': channel_info.url,
-    '☎️ 投稿澄清爆料：@DNW8888': channel_info.contact,
-    '🔔订阅东南亚大事件曝光-聚焦时事': channel_info.title
+    # https://t.me/pueee
+    # https://t.me/pyzxw
+    # https://t.me/pyzcc
+    # https://t.me/pyzbg
+    '🔗 t.me/+UNWEBNeUmh84MDVl': channel_info.url,
+    '😍 投稿爆料联系：@Pyz22': channel_info.contact,
+    '🔔订阅东南亚大事件': channel_info.title,
+    '✅ 消息已收录到 @soso': ''
 }
 
 # 广告过滤列表

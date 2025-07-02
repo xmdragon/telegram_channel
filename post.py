@@ -1,11 +1,14 @@
 import config
 import warnings
+import logging
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InputMediaPhoto,
     InputMediaVideo,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
 )
 from telegram.ext import (
     Application,
@@ -15,131 +18,169 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+from telegram.request import HTTPXRequest
+from telegram.error import Conflict
 
+# 静音 httpx INFO 日志
+logging.getLogger("httpx").setLevel(logging.WARNING)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# ———— /submit：开始投稿 —————————————————————————————————————
+# logging 配置
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
+logger = logging.getLogger(__name__)
+
+# /start：欢迎信息 + 按钮和回复键盘
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 欢迎文本
+    await update.message.reply_text(config.BOT_WELCOME_TEXT,
+        reply_markup=InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("订阅频道", url=f"https://t.me/{config.BOT_CHANNEL_USERNAME.strip('@').lower()}"),
+                InlineKeyboardButton("联系客服", url=f"https://t.me/{config.channel_info.author.strip('@')}")
+            ]
+        ])
+    )
+    # 底部回复键盘
+    await update.message.reply_text("请选择操作：",
+        reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton("开始投稿"), KeyboardButton("完成投稿")]],
+            resize_keyboard=True,
+        )
+    )
+
+# submit：开始投稿
 async def submit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data["pending"] = []
     context.chat_data["submitting"] = True
+    # 引导文本
     await update.message.reply_text(
-        "✅ 已进入投稿模式，请连续发送文字、图片或视频，发送完毕后请发送 /done 提交。"
+        "✅ 已进入投稿模式，请连续发送文字、图片或视频。完成后点击“完成投稿”或输入 /done 。"
     )
 
-# ———— /done：结束投稿并预览给管理员 —————————————————————————
+# done：结束投稿并预览给管理员
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    chat_data = context.chat_data
-
-    if not chat_data.get("submitting"):
-        await update.message.reply_text("⚠️ 你还没开始投稿，请先发送 /submit 。")
+    data = context.chat_data
+    if not data.get("submitting"):
+        await update.message.reply_text("⚠️ 请先开始投稿(点击“开始投稿”或 /submit)。")
         return
-
-    pending = chat_data.get("pending", [])
+    pending = data.get("pending", [])
     if not pending:
-        await update.message.reply_text("⚠️ 你还没有发送任何内容，无法提交。")
+        await update.message.reply_text("⚠️ 尚未发送任何内容，无法提交。")
         return
+    # 关闭模式并清空键盘
+    data["submitting"] = False
+    await update.message.reply_text("✅ 投稿已提交给管理员审核。", reply_markup=ReplyKeyboardMarkup([[]], resize_keyboard=True))
 
-    # 关闭投稿模式
-    chat_data["submitting"] = False
-
-    # 确认给用户
-    await update.message.reply_text("✅ 投稿已提交给管理员审核，请稍后…")
-
-    # —— 调试：打印一下我们要发给谁 —— 
-    print(f"[DEBUG] Sending preview to admin_id = {config.BOT_ADMIN_ID}")
-
-    # 给管理员发预览
+    # 构造审核按钮
     kb = InlineKeyboardMarkup([[
         InlineKeyboardButton("✅ 发布", callback_data="approve"),
         InlineKeyboardButton("🚫 拒绝", callback_data="reject"),
     ]])
     first = pending[0]
-    uname = first.from_user.username if first.from_user else user.username or "无名"
-    await context.bot.send_message(
-        chat_id=config.BOT_ADMIN_ID,
-        text=f"收到一条投稿来自 @{uname}",
-        reply_markup=kb,
-    )
+    uname = first.from_user.username or user.username or "无名"
+    try:
+        msg = await context.bot.send_message(chat_id=config.ADMIN_ID,
+            text=f"收到投稿 @{uname}",
+            reply_markup=kb
+        )
+        logger.info(f"审核标题发出，message_id={msg.message_id}")
+    except Exception as e:
+        logger.error("发送审核标题失败", exc_info=e)
+        await update.message.reply_text("⚠️ 无法通知管理员。")
+        return
 
-    # 收集文字和媒体
-    texts = []
-    media = []
+    # 收集并发送内容：先媒体再文字
+    texts, media = [], []
     for m in pending:
-        if m.text:
-            texts.append(m.text)
-        elif m.photo:
-            media.append(InputMediaPhoto(m.photo[-1].file_id))
-        elif m.video:
-            media.append(InputMediaVideo(m.video.file_id))
-
-    # 先发文字
+        if m.text: texts.append(m.text)
+        if m.caption: texts.append(m.caption)
+        if m.photo: media.append(InputMediaPhoto(m.photo[-1].file_id))
+        if m.video: media.append(InputMediaVideo(m.video.file_id))
+    if media:
+        try:
+            msgs = await context.bot.send_media_group(chat_id=config.ADMIN_ID, media=media)
+            logger.info(f"media_group sent {len(msgs)} media")
+        except Exception as e:
+            logger.error("media_group发送失败", exc_info=e)
     if texts:
         combined = "\n\n".join(texts) + f"\n\n#投稿 via @{config.BOT_CHANNEL_USERNAME.strip('@')}"
-        await context.bot.send_message(chat_id=config.BOT_ADMIN_ID, text=combined)
+        try:
+            msg = await context.bot.send_message(chat_id=config.ADMIN_ID, text=combined)
+            logger.info(f"文字内容发送成功，message_id={msg.message_id}")
+        except Exception as e:
+            logger.error("文字内容发送失败", exc_info=e)
 
-    # 再发纯媒体轮播
-    if media:
-        await context.bot.send_media_group(chat_id=config.BOT_ADMIN_ID, media=media)
-
-
-# ———— 收集所有消息 ———————————————————————————————————————
+# collect：收集投稿内容
 async def collect(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.chat_data.get("submitting"):
-        # 只在投稿模式下才收集
-        msg = update.message
-        if msg:
-            context.chat_data.setdefault("pending", []).append(msg)
+        context.chat_data.setdefault("pending", []).append(update.message)
 
-# ———— 管理员审核回调 ——————————————————————————————————————
+# handle_callback：管理员审核回调
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    pending = context.chat_data.pop("pending", [])
+    context.chat_data.pop("submitting", None)
     action = query.data
-
-    pending = context.chat_data.get("pending", [])
-    if not pending:
-        await query.edit_message_text("⚠️ 投稿已超时或不存在。")
-        return
-
+    texts, media = [], []
+    for m in pending:
+        if m.text: texts.append(m.text)
+        if m.caption: texts.append(m.caption)
+        if m.photo: media.append(InputMediaPhoto(m.photo[-1].file_id))
+        if m.video: media.append(InputMediaVideo(m.video.file_id))
     if action == "approve":
-        # 同样逻辑：文字 + 轮播
-        texts = []
-        media = []
-        for m in pending:
-            if m.text:
-                texts.append(m.text)
-            elif m.photo:
-                media.append(InputMediaPhoto(m.photo[-1].file_id))
-            elif m.video:
-                media.append(InputMediaVideo(m.video.file_id))
-
+        if media:
+            await context.bot.send_media_group(chat_id=config.BOT_CHANNEL_USERNAME, media=media)
         if texts:
             combined = "\n\n".join(texts) + f"\n\n#投稿 via @{config.BOT_CHANNEL_USERNAME.strip('@')}"
             await context.bot.send_message(chat_id=config.BOT_CHANNEL_USERNAME, text=combined)
-
-        if media:
-            await context.bot.send_media_group(chat_id=config.BOT_CHANNEL_USERNAME, media=media)
-
         await query.edit_message_text("✅ 已发布到频道。")
     else:
         await query.edit_message_text("🚫 投稿已拒绝。")
 
-    # 清理
-    context.chat_data.pop("pending", None)
-    context.chat_data.pop("submitting", None)
+# pingadmin：测试管理员连通
+async def pingadmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        await update.message.reply_text("✅ 测试完成。")
+        await context.bot.send_message(chat_id=config.ADMIN_ID, text="✅ Bot 通知成功")
+    except Conflict:
+        logger.warning("pingadmin冲突，忽略")
+        await update.message.reply_text("⚠️ 测试通知冲突，可能已有实例在运行。")
 
-# ———— 启动 ——————————————————————————————————————————————
+# 全局错误处理
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    err = context.error
+    if isinstance(err, Conflict):
+        logger.warning("Conflict 刷新轮询冲突，继续执行。")
+        return
+    logger.error("未处理异常：", exc_info=err)
+
+# 启动
 def main():
-    app = Application.builder().token(config.BOT_TOKEN).build()
+    logger.info(f"ADMIN_ID={config.ADMIN_ID} (type={type(config.ADMIN_ID)})")
+    req = HTTPXRequest(connect_timeout=5.0, read_timeout=20.0)
+    app = Application.builder() \
+        .token(config.BOT_TOKEN) \
+        .request(req) \
+        .build()
 
+    # 注册 handlers
+    app.add_error_handler(error_handler)
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("submit", submit))
     app.add_handler(CommandHandler("done", done))
+    app.add_handler(MessageHandler(filters.Regex("^(开始投稿)$"), submit))
+    app.add_handler(MessageHandler(filters.Regex("^(完成投稿)$"), done))
+    app.add_handler(CommandHandler("pingadmin", pingadmin))
     app.add_handler(MessageHandler(filters.ALL, collect))
     app.add_handler(CallbackQueryHandler(handle_callback))
 
-    print("Bot running...")
-    app.run_polling()
+    logger.info("Bot running...，使用 drop_pending_updates")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
