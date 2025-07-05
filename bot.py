@@ -182,11 +182,6 @@ async def flush_buffer(key):
                 f.seek(0)
                 f.writelines(lines[-2000:])
 
-        # 判断 combined_text 是否包含　config.channel_info.title
-        # 如果没有，自动加上
-        if config.channel_info.title and config.channel_info.title not in combined_text:
-            combined_text = f"{combined_text}\n{config.channel_info.title}\n{config.channel_info.url}\n{config.channel_info.contact}"
-
         # 确保有文件，则发送文件；没有文件时发送文本
         try:
             if files:
@@ -268,7 +263,15 @@ async def main():
             text = text.replace(old, new)
         for pat, rep in config.ad_replacements.items():
             text = re.sub(pat, rep, text, flags=re.MULTILINE)
+        
+        # 判断 combined_text 是否包含　config.channel_info.short_url
+        # 如果没有，自动加上
+        if config.channel_info.short_url and config.channel_info.short_url not in text:
+            logging.info(f"自动添加短链接 {config.channel_info.short_url} 到合并文本")
+            text = f"{text}\n{config.channel_info.title}\n{config.channel_info.url}\n{config.channel_info.contact}"
         m.message = text
+
+        #logging.info(f"处理后文字内容：{text}")
 
         # 🌟 ✅ 不再立即发送文件，而是统一放入缓冲区等待合并
         message_buffer[key].append(m)
