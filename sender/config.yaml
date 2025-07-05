@@ -5,7 +5,8 @@ max_delay: 10
 message_text: "你好，欢迎订阅东南亚大事件「曝光」，链接: https://t.me/bigeventsinsea 最全的曝光内容！ 😊"
 
 channels:
-  - link: https://t.me/bigeventsinsea
+  - link: https://t.me/Spri1te3mr
+  - link: https://t.me/PG134
 
 accounts:
   - session: user1 # +85264887781
