@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户数据库情况</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- 本地引入 Bootstrap CSS -->
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+</head>
+<body>
+<div class="container my-4">
+    <h2 class="mb-4">用户数据库情况</h2>
+
+    <table class="table table-bordered table-hover table-sm align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Phone</th>
+                <th>Name</th>
+                <th>Last Date</th>
+                <th>Flag</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for uid, username, phone, fname, lname, last_date, flag in users %}
+            <tr class="{% if flag==1 %}table-success{% elif flag==-1 %}table-danger{% else %}table-warning{% endif %}">
+                <td>{{ uid }}</td>
+                <td>@{{ username }}</td>
+                <td>{{ phone }}</td>
+                <td>{{ fname }} {{ lname }}</td>
+                <td>{{ last_date }}</td>
+                <td>
+                    {% if flag == 0 %}
+                        未发送
+                    {% elif flag == 1 %}
+                        已发送
+                    {% elif flag == -1 %}
+                        号限制
+                    {% else %}
+                        未知
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ url_for('index') }}" class="btn btn-primary mt-3">返回主页</a>
+</div>
+
+<!-- 本地引入 Bootstrap JS -->
+  <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+</html>
