@@ -1,0 +1,17 @@
+max_messages_per_day: 300
+min_delay: 5
+max_delay: 10
+
+message_text: "你好，欢迎订阅东南亚大事件「曝光」，链接: https://t.me/bigeventsinsea 最全的曝光内容！ 😊"
+
+channels:
+  - link: https://t.me/bigeventsinsea
+
+accounts:
+  - session: user1 # +85264887781
+    api_id: 28061491
+    api_hash: 4f8831b3cb5a07f601f28f8295f934d4
+
+  - session: user2 # +85264854380
+    api_id: 24382238
+    api_hash: a926790195b42a472477e7709a74fc24

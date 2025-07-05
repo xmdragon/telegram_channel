@@ -148,11 +148,14 @@ async def flush_buffer(key):
                     files.append(path)
             except Exception as e:
                 logging.error(f"下载媒体失败: {e}")
-
+    """
     chat = await client.get_entity(key[0])
     title = getattr(chat, "title", str(key[0]))
     username = getattr(chat, "username", "")
     prefix = f"来源：{title} 「{username}」\n\n\n"
+    """
+    # 正式用不要来源
+    prefix = ''
 
     # 确保文本内容不为空并且存在
     if combined_text:
@@ -231,7 +234,6 @@ async def main():
 
         text = m.message or ""
         # —— 广告过滤：匹配到即清空并取消合并 —— 
-        # 过滤广告关键词，文中有以下内容之一跳过
         ad_keywords = load_keywords("ad_keywords.json")
         for k in ad_keywords:
             if k in text:
@@ -240,22 +242,20 @@ async def main():
                 if task:
                     task.cancel()
                 message_buffer.pop(key, None)
-                suppressed_keys.add(key)  # 只在广告时才加入 suppressed_keys
+                suppressed_keys.add(key)
                 return
 
-        # —— 你的原有清洗与替换逻辑 —— 
+        # —— 清洗与替换逻辑 —— 
         text = re.sub(
             r'^(?=.*https?://)(?!.*t\.me).*$', 
             '', text, flags=re.MULTILINE
         )
-        # 过滤关键词，行中有以下内容之一删除本行
         del_keywords = load_keywords("keywords.json")
         pattern = re.compile(
             rf'^(?=.*(?:{"|".join(del_keywords)})).*$', 
             re.MULTILINE
         )
         text, cnt = pattern.subn('', text)
-        # 如果删除行数超过 7 行，则视为广告，清空缓冲并取消合并任务
         if cnt >= 7:
             return
         text = re.sub(r'\n+', '\n', text).strip()
@@ -263,8 +263,9 @@ async def main():
             text = text.replace(old, new)
         for pat, rep in config.ad_replacements.items():
             text = re.sub(pat, rep, text, flags=re.MULTILINE)
-
         m.message = text
+
+        # 🌟 ✅ 不再立即发送文件，而是统一放入缓冲区等待合并
         message_buffer[key].append(m)
 
         # 启动或复用定时合并任务
