@@ -182,6 +182,11 @@ async def flush_buffer(key):
                 f.seek(0)
                 f.writelines(lines[-2000:])
 
+        # 判断 combined_text 是否包含　config.channel_info.title
+        # 如果没有，自动加上
+        if config.channel_info.title and config.channel_info.title not in combined_text:
+            combined_text = f"{combined_text}\n{config.channel_info.title}\n{config.channel_info.url}\n{config.channel_info.contact}"
+
         # 确保有文件，则发送文件；没有文件时发送文本
         try:
             if files:
