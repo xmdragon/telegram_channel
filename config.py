@@ -10,7 +10,8 @@ session_name = '/root/telegram_bot/my_session.session'
 # 目标频道
 # 如：@mychannel 或 -1001234
 # ========================
-target_channel = 'https://t.me/bigeventsinsea'
+# target_channel = '@bigeventsinsea'
+target_channel = -1002696592354
 
 # 替换关键字
 # 替换映射表
@@ -22,13 +23,19 @@ channel_info = SimpleNamespace(
     author = '@stan0505'
 )
 
+#  审核群ID
+review_groups = [-4885093342]
+admin_notify_group = -4885093342
+
 # 你的 Telegram 用户 ID（整数）
 ADMIN_ID = 7776592210
 
 # 多个管理员 ID 列表，这些管理员收到投稿审核
 ADMIN_IDS = [7776592210, 5030659549]
 
-# @SEABigEvents_2025_bot
+
+bot_username = '@SEABigEvents_2025_bot'
+
 # 你的机器人token
 BOT_TOKEN = '7905520524:AAF2NAh4vcJ24TbdnNhKb5QS8EeWN__xin8'
 
@@ -53,6 +60,7 @@ BOT_WELCOME_TEXT = (
 # 只能用 @username
 # ========================
 source_channels = [
+    '@ksir_6688',
     # '@miandianDS',    # 1
     # '@tx100',         # 2
     # '@Spri1te3mr',    # 3
@@ -73,7 +81,8 @@ source_channels = [
     # '@pueee',         # 18
     '@ygxw1',           # 19 *
     '@Ru_Yi88',         # 20 *
-    '@ksir_6688'        # 21
+    '@SJTFLP',          # 21 *
+    '@feilvbingi'       # 22 *
 ]
 
 # 是否只转发含媒体的消息
@@ -226,7 +235,13 @@ replacements = {
     # https://t.me/Ru_Yi88
     '📣❗️❗️❗️❗️❗️❗️❗️❗️🇲🇲': channel_info.title,
     '⭐️ https://t.me/Ru_Yi88': channel_info.url,
-    '📞 投稿爆料联系 ： @Fa6178 ': channel_info.contact
+    '📞 投稿爆料联系 ： @Fa6178 ': channel_info.contact,
+    
+    # https://t.me/SJTFLP
+    '😶‍🌫️ 曝光-澄清投稿： @xingcheng_1': channel_info.title + '\n' + channel_info.url,
+    '🫢 意见-反馈投稿： @xingyu_01': channel_info.contact,
+    
+    # https://t.me/feilvbingi
 }
 
 # 广告过滤列表
@@ -236,7 +251,8 @@ ad_replacements = {
     r'^.*亚太导航.*\n?': '',
     r'^.*查档开户.*\n?': '',
     r'.*视频传送门.*\n?': '',
-    r'^.*本消息[\d]+秒后自动删除.*\n?': ''
+    r'^.*本消息[\d]+秒后自动删除.*\n?': '',
+    r'^.*二手交易.*\n?': ''
 }
 
 md5_file = 'md5.txt'

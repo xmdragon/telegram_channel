@@ -31,14 +31,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def start_markup():
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("订阅频道", url=f"https://t.me/{config.BOT_CHANNEL_USERNAME.strip('@').lower()}"),
-            InlineKeyboardButton("联系客服", url=f"https://t.me/{config.channel_info.author.strip('@')}")
-        ]
-    ])
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         config.BOT_WELCOME_TEXT

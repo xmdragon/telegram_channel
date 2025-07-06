@@ -148,12 +148,7 @@ async def flush_buffer(key):
                     files.append(path)
             except Exception as e:
                 logging.error(f"下载媒体失败: {e}")
-    """
-    chat = await client.get_entity(key[0])
-    title = getattr(chat, "title", str(key[0]))
-    username = getattr(chat, "username", "")
-    prefix = f"来源：{title} 「{username}」\n\n\n"
-    """
+
     # 正式用不要来源
     prefix = ''
 
@@ -233,43 +228,46 @@ async def main():
         key = (chat.id, sender.id)
 
         text = m.message or ""
-        # —— 广告过滤：匹配到即清空并取消合并 —— 
-        ad_keywords = load_keywords("ad_keywords.json")
-        for k in ad_keywords:
-            if k in text:
-                logging.info(f"🚫 广告[{k}]跳过，清空缓冲并取消合并任务 {key}")
-                task = flush_tasks.pop(key, None)
-                if task:
-                    task.cancel()
-                message_buffer.pop(key, None)
-                suppressed_keys.add(key)
-                return
+        # 如果text不为空
+        if text.strip():
+            # —— 广告过滤：匹配到即清空并取消合并 —— 
+            ad_keywords = load_keywords("ad_keywords.json")
+            for k in ad_keywords:
+                if k in text:
+                    logging.info(f"🚫 广告[{k}]跳过，清空缓冲并取消合并任务 {key}")
+                    task = flush_tasks.pop(key, None)
+                    if task:
+                        task.cancel()
+                    message_buffer.pop(key, None)
+                    suppressed_keys.add(key)
+                    return
 
-        # —— 清洗与替换逻辑 —— 
-        text = re.sub(
-            r'^(?=.*https?://)(?!.*t\.me).*$', 
-            '', text, flags=re.MULTILINE
-        )
-        del_keywords = load_keywords("keywords.json")
-        pattern = re.compile(
-            rf'^(?=.*(?:{"|".join(del_keywords)})).*$', 
-            re.MULTILINE
-        )
-        text, cnt = pattern.subn('', text)
-        if cnt >= 7:
-            return
-        text = re.sub(r'\n+', '\n', text).strip()
-        for old, new in config.replacements.items():
-            text = text.replace(old, new)
-        for pat, rep in config.ad_replacements.items():
-            text = re.sub(pat, rep, text, flags=re.MULTILINE)
-        
-        # 判断 combined_text 是否包含　config.channel_info.short_url
-        # 如果没有，自动加上
-        if config.channel_info.short_url and config.channel_info.short_url not in text:
-            logging.info(f"自动添加短链接 {config.channel_info.short_url} 到合并文本")
-            text = f"{text}\n{config.channel_info.title}\n{config.channel_info.url}\n{config.channel_info.contact}"
-        m.message = text
+            # —— 清洗与替换逻辑 —— 
+            text = re.sub(
+                r'^(?=.*https?://)(?!.*t\.me).*$', 
+                '', text, flags=re.MULTILINE
+            )
+            del_keywords = load_keywords("keywords.json")
+            pattern = re.compile(
+                rf'^(?=.*(?:{"|".join(del_keywords)})).*$', 
+                re.MULTILINE
+            )
+            text, cnt = pattern.subn('', text)
+            if cnt >= 7:
+                return
+            text = re.sub(r'\n+', '\n', text).strip()
+            for old, new in config.replacements.items():
+                text = text.replace(old, new)
+            for pat, rep in config.ad_replacements.items():
+                text = re.sub(pat, rep, text, flags=re.MULTILINE)
+            
+            # 判断 combined_text 是否包含　config.channel_info.short_url
+            # 如果没有，自动加上
+            if config.channel_info.short_url and config.channel_info.short_url not in text:
+                logging.info(f"原始文字内容：{text}")
+                logging.info(f"自动添加短链接 {config.channel_info.short_url} 到合并文本")
+                text = f"{text}\n{config.channel_info.title}\n{config.channel_info.url}\n{config.channel_info.contact}"
+            m.message = text
 
         #logging.info(f"处理后文字内容：{text}")
 

@@ -4,6 +4,7 @@ import sqlite3
 import random
 import datetime
 import argparse
+import logging
 from sqlite3 import OperationalError
 from telethon import TelegramClient, events
 from telethon.tl.functions.channels import GetFullChannelRequest
@@ -14,6 +15,18 @@ from telethon.errors import (
     FloodWaitError,
     ChatWriteForbiddenError
 )
+
+# Logging configuration: write to file and console
+log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(
+    level=logging.INFO,
+    format=log_format,
+    handlers=[
+        logging.FileHandler('sender.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 send_switch = False  # 控制是否发送消息
 
@@ -46,10 +59,13 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+    logger.info("数据库初始化完成: %s", DB_FILE)
 
 def read_config():
     with open(CONFIG_FILE, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f)
+    logger.info("配置加载完成: %s", CONFIG_FILE)
+    return cfg
 
 def get_today():
     return datetime.date.today().isoformat()
@@ -63,14 +79,14 @@ async def get_all_discussion_groups(client, channel_links):
             full = await client(GetFullChannelRequest(channel_entity))
             linked_chat_id = full.full_chat.linked_chat_id
             if not linked_chat_id:
-                print(f"⚠️ 频道 {link} 没有关联讨论群，跳过")
+                logger.warning("频道 %s 没有关联讨论群，跳过", link)
                 continue
             group_id = -int(f"100{linked_chat_id}")
             input_entity = await client.get_input_entity(group_id)
             groups.append(input_entity)
-            print(f"[+] 频道 {channel_entity.id} 关联讨论群 {group_id}")
+            logger.info("关联讨论群: 频道 %s -> 群 %s", channel_entity.id, group_id)
         except Exception as e:
-            print(f"❌ 获取频道 {link} 的讨论群失败: {e}")
+            logger.error("获取频道 %s 的讨论群失败: %s", link, e)
     return groups
 
 async def process_users_from_db(client, session_name, max_per_day, min_delay, max_delay, message_text):
@@ -92,7 +108,7 @@ async def process_users_from_db(client, session_name, max_per_day, min_delay, ma
 
     for (uid_str,) in users:
         if sent_today >= max_per_day:
-            print(f"[{session_name}] 达到每日上限 {max_per_day}")
+            logger.info("[%s] 达到每日上限 %d", session_name, max_per_day)
             break
 
         try:
@@ -111,17 +127,17 @@ async def process_users_from_db(client, session_name, max_per_day, min_delay, ma
                     )
                     conn.commit()
 
-                print(f"[{session_name}] 已发 {sent_today}/{max_per_day} 给 {uid_str}")
+                logger.info("[%s] 已发 %d/%d 给 %s", session_name, sent_today, max_per_day, uid_str)
                 await asyncio.sleep(random.uniform(min_delay, max_delay))
             else:
-                print(f"[{session_name}] 发送功能已关闭，跳过用户 {uid_str}")
+                logger.info("[%s] 发送功能已关闭，跳过用户 %s", session_name, uid_str)
 
         except FloodWaitError as e:
-            print(f"[{session_name}] FloodWait 等待 {e.seconds}s")
+            logger.warning("[%s] FloodWait 等待 %ds", session_name, e.seconds)
             await asyncio.sleep(e.seconds + 5)
 
         except (UserPrivacyRestrictedError, ChatWriteForbiddenError, PeerIdInvalidError) as e:
-            print(f"[{session_name}] 用户 {uid_str} 因隐私/禁止发信，标记为-1")
+            logger.warning("[%s] 用户 %s 因隐私/禁止发信，标记为-1", session_name, uid_str)
             async with DB_LOCK:
                 cur.execute(
                     "UPDATE sent_users SET sent_flag=-1, last_sent_date=? WHERE user_id=?",
@@ -130,10 +146,10 @@ async def process_users_from_db(client, session_name, max_per_day, min_delay, ma
                 conn.commit()
 
         except RPCError as e:
-            print(f"[{session_name}] RPCError: {e}")
+            logger.error("[%s] RPCError: %s", session_name, e)
 
         except Exception as ex:
-            print(f"[{session_name}] 发信给 {uid_str} 失败: {ex}")
+            logger.error("[%s] 发信给 %s 失败: %s", session_name, uid_str, ex)
 
     conn.close()
 
@@ -141,15 +157,12 @@ async def run_account(account, channel_links, max_per_day, min_delay, max_delay,
     client = TelegramClient(account["session"], account["api_id"], account["api_hash"])
     await client.start()
 
-    # 转换频道为讨论群
     groups = await get_all_discussion_groups(client, channel_links)
     if not groups:
-        print(f"[{account['session']}] 没有可用讨论群，退出监听")
+        logger.warning("[%s] 没有可用讨论群，退出监听", account["session"])
         return
-    
-    print(f"[{account['session']}] 已开始监听 {len(groups)} 个讨论群...")
+    logger.info("[%s] 已开始监听 %d 个讨论群...", account["session"], len(groups))
 
-    # 监听所有关联群
     @client.on(events.NewMessage(chats=groups))
     async def handler(event):
         uid = event.sender_id
@@ -167,14 +180,16 @@ async def run_account(account, channel_links, max_per_day, min_delay, max_delay,
         conn.execute("PRAGMA journal_mode=WAL")
         cur = conn.cursor()
         async with DB_LOCK:
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT OR IGNORE INTO sent_users 
                 (user_id, last_sent_date, sent_flag, username, phone, first_name, last_name)
                 VALUES (?, ?, 0, ?, ?, ?, ?)
-            """, (uid_str, today, username, phone, first_name, last_name))
+                """, (uid_str, today, username, phone, first_name, last_name)
+            )
             conn.commit()
         conn.close()
-        print(f"[{account['session']}] [监听] 记录用户 {uid_str} (@{username})")
+        logger.info("[%s] [监听] 记录用户 %s (@%s)", account["session"], uid_str, username)
 
     asyncio.create_task(cycle_send(client, account["session"], max_per_day, min_delay, max_delay, message_text))
     await client.run_until_disconnected()
@@ -191,17 +206,17 @@ async def reset_counts():
     cur.execute("DELETE FROM daily_counts WHERE date!=?", (today,))
     conn.commit()
     conn.close()
-    print("重置每日计数完成")
+    logger.info("重置每日计数完成")
 
 async def show_stats():
     conn = sqlite3.connect(DB_FILE, timeout=30)
     cur = conn.cursor()
     today = get_today()
-    print("=== 今日发送统计 ===")
+    logger.info("=== 今日发送统计 ===")
     for session, date, count in cur.execute(
         "SELECT session,date,count FROM daily_counts WHERE date=?", (today,)
     ):
-        print(f"{session}: {count}")
+        logger.info("%s: %s", session, count)
     conn.close()
 
 async def main():
