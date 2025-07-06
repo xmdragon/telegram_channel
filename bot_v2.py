@@ -38,8 +38,12 @@ message_buffer = defaultdict(list)
 flush_tasks = {}
 suppressed_keys = set()
 BUFFER_TIME = 2.0
+pending_reviews = {}
 
-pending_reviews = {}  # key: review_message_id -> dict
+review_group_entity = None
+target_channel_entity = None
+admin_notify_entity = None
+source_entities = []
 
 def load_keywords(path: str) -> list[str]:
     try:
@@ -127,7 +131,7 @@ async def flush_buffer(key):
     except FileNotFoundError:
         sent_hashes = []
     if md5_hash in sent_hashes:
-        logging.info(f"⏭️ 已发送过内容，跳过")
+        logging.info(f"⏭️ 已发送过内容({md5_hash})，跳过")
         return
     with open(config.md5_file, 'a', encoding='utf-8') as f:
         f.write(md5_hash + '\n')
@@ -137,24 +141,21 @@ async def flush_buffer(key):
             f.seek(0)
             f.writelines(lines[-2000:])
 
-    review_caption = f"{combined_text}\n\n✅ 请发送 /publish 🚀 发布全部，或回复 /publish 📄 只发布此条。\n🚫 发送 /reject ❌ 拒绝此条。"
+    review_caption = f"{combined_text}\n\n✅ 发送 /publish 🚀 发布全部\n✅ 回复 /publish 📄 只发布此条。\n🚫 回复 /reject ❌ 拒绝此条。"
     try:
-        if files:
-            review_msg = await client.send_file(
-                config.review_groups[0], files, caption=review_caption
-            )
-        else:
-            review_msg = await client.send_message(config.review_groups[0], review_caption)
+        review_msg = await client.send_file(review_group_entity, files, caption=review_caption) if files else \
+                     await client.send_message(review_group_entity, review_caption)
 
         if isinstance(review_msg, list):
             review_msg = review_msg[0]
+        logging.info(f"保存 pending_reviews id={review_msg.id}")
 
         pending_reviews[review_msg.id] = {
             "files": files,
             "text": combined_text,
             "md5": md5_hash,
             "created": datetime.now(),
-            "review_group": config.review_groups[0]
+            "review_group": review_group_entity
         }
         logging.info(f"🚀 已发送到审核群 message_id={review_msg.id}")
     except Exception as e:
@@ -163,10 +164,10 @@ async def flush_buffer(key):
 async def publish_content(files, text):
     try:
         if files:
-            await client.send_file(config.target_channel, files, caption=text)
+            await client.send_file(target_channel_entity, files, caption=text)
         else:
-            await client.send_message(config.target_channel, text)
-        await client.send_message(config.admin_notify_group, f"✅ 已发布内容")
+            await client.send_message(target_channel_entity, text)
+        await client.send_message(admin_notify_entity, f"✅ 已发布内容")
     except Exception as e:
         logging.error(f"发布内容失败: {e}")
 
@@ -179,7 +180,7 @@ async def auto_publish_pending_reviews():
                 try:
                     await publish_content(item["files"], item["text"])
                     await client.send_message(
-                        config.admin_notify_group,
+                        admin_notify_entity,
                         f"⏳ 超过30分钟未审核，已自动发布 message_id={rid}"
                     )
                     await client.delete_messages(item["review_group"], rid)
@@ -190,45 +191,57 @@ async def auto_publish_pending_reviews():
             pending_reviews.pop(rid, None)
         await asyncio.sleep(300)
 
-@client.on(events.NewMessage(chats=config.review_groups))
+@client.on(events.NewMessage)
 @safe_handler
 async def review_commands(event):
+    try:
+        chat = await event.get_chat()
+    except Exception as e:
+        logging.warning(f"检测 chat_id 失败: {e}")
+
     text = event.raw_text.strip().lower()
     reply = await event.get_reply_message()
-    perms = await client.get_permissions(event.chat_id, event.sender_id)
-    if not perms.is_admin:
-        return
 
     if text == "/publish":
         if reply and reply.id in pending_reviews:
             item = pending_reviews.pop(reply.id)
             await publish_content(item["files"], item["text"])
             await client.delete_messages(event.chat_id, reply.id)
+            logging.info(f"✅ 已单条发布 message_id={reply.id}")
         else:
             for rid, item in list(pending_reviews.items()):
                 await publish_content(item["files"], item["text"])
                 await client.delete_messages(item["review_group"], rid)
                 pending_reviews.pop(rid, None)
+                logging.info(f"✅ 已批量发布 message_id={rid}")
     elif text == "/reject":
         if reply and reply.id in pending_reviews:
-            await client.send_message(config.admin_notify_group, f"🚫 有内容被拒绝")
+            await client.send_message(admin_notify_entity, f"🚫 有内容被拒绝")
             await client.delete_messages(event.chat_id, reply.id)
             pending_reviews.pop(reply.id, None)
+            logging.info(f"❌ 已拒绝 message_id={reply.id}")
 
 async def main():
+    global review_group_entity, target_channel_entity, admin_notify_entity, source_entities
     await client.start()
     logging.info("✅ Bot 已启动")
-    asyncio.create_task(auto_publish_pending_reviews())
 
-    entities = []
+    review_group_entity = await client.get_entity(config.review_groups[0])
+    target_channel_entity = await client.get_entity(config.target_channel)
+    admin_notify_entity = await client.get_entity(config.admin_notify_group)
+    source_entities = []
     for ch in config.source_channels:
         try:
             ent = await client.get_entity(ch)
-            entities.append(ent)
+            source_entities.append(ent)
+            logging.info(f"✅ 已解析 source_channel: {ch} -> {ent.id}")
         except Exception as e:
-            logging.error(f"无法获取频道 {ch}: {e}")
+            logging.error(f"⚠️ 无法获取频道 {ch}: {e}")
 
-    @client.on(events.NewMessage(chats=entities))
+    logging.info(f"✅ 已解析所有频道群")
+    asyncio.create_task(auto_publish_pending_reviews())
+
+    @client.on(events.NewMessage(chats=source_entities))
     @safe_handler
     async def handler(event):
         m = event.message

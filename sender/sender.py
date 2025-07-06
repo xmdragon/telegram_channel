@@ -130,7 +130,7 @@ async def process_users_from_db(client, session_name, max_per_day, min_delay, ma
                 logger.info("[%s] 已发 %d/%d 给 %s", session_name, sent_today, max_per_day, uid_str)
                 await asyncio.sleep(random.uniform(min_delay, max_delay))
             else:
-                logger.info("[%s] 发送功能已关闭，跳过用户 %s", session_name, uid_str)
+                # logger.info("[%s] 发送功能已关闭，跳过用户 %s", session_name, uid_str)
 
         except FloodWaitError as e:
             logger.warning("[%s] FloodWait 等待 %ds", session_name, e.seconds)
