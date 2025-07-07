@@ -51,6 +51,6 @@ accounts:
     api_id: 28061491
     api_hash: 4f8831b3cb5a07f601f28f8295f934d4
 
-  - session: user2 # +85264854380
-    api_id: 24382238
-    api_hash: a926790195b42a472477e7709a74fc24
+#  - session: user2 # +85264854380
+#    api_id: 24382238
+#    api_hash: a926790195b42a472477e7709a74fc24

@@ -2,14 +2,14 @@ from types import SimpleNamespace
 import json
 
 # API 信息
-api_id = 20994599
-api_hash = '443ee1e0161f6bb3f358fd4966cc5587'
-session_name = '/root/telegram_bot/my_session.session'
+#api_id = 20994599
+#api_hash = '443ee1e0161f6bb3f358fd4966cc5587'
+#session_name = '/root/telegram_bot/my_session.session'
 
 # 正式API信息
-# api_id = 7617210
-# api_hash = 'b71cebb0696aef39fa62d595df9d3c7f'
-# session_name = '/root/telegram_bot/get_session.session'
+# api_id = 24382238
+# api_hash = 'a926790195b42a472477e7709a74fc24'
+# session_name = '/root/telegram_bot/jam16910_session.session'
 
 # ========================
 # 目标频道
