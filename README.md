@@ -12,6 +12,7 @@
 ## 安装telethon
 ``` bash
 # 安装 venv（通常已自带）
+sudo apt update
 sudo apt install python3-venv python3-pip
 
 # 创建虚拟环境
