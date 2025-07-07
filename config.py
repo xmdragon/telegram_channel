@@ -15,15 +15,15 @@ import json
 # 目标频道
 # 如：@mychannel 或 -1001234
 # ========================
-target_channel = '@bigeventsinsea'
-# target_channel = -1002696592354
+target_channel = '@dny9527'
+# target_channel = -1002705755618
 
 # 替换关键字
 # 替换映射表
 channel_info = SimpleNamespace(
-    title = '🔔 订阅东南亚大事件「大曝光」',
-    url = '🔗  t.me/bigeventsinsea',
-    short_url = 'bigeventsinsea',
+    title = '🔔 订阅📡东南亚曝光台',
+    url = f'🔗  t.me/{target_channel.strip('@')}',
+    short_url = f'{target_channel.strip('@')}',
     contact = '☎️ 投稿曝料：@stan0505',
     author = '@stan0505'
 )
@@ -32,26 +32,23 @@ channel_info = SimpleNamespace(
 review_groups = [-1002871459104]
 admin_notify_group = -1002871459104
 
-# 你的 Telegram 用户 ID（整数）
-ADMIN_ID = 7776592210
-
 # 多个管理员 ID 列表，这些管理员收到投稿审核
-ADMIN_IDS = [7776592210, 5030659549]
+ADMIN_IDS = [7776592210, 6403012933, 7609694754]
 
-bot_username = '@SEABigEvents_2025_bot'
+bot_username = '@dny9527bot'
 
 # 你的机器人token
-BOT_TOKEN = '7905520524:AAF2NAh4vcJ24TbdnNhKb5QS8EeWN__xin8'
+BOT_TOKEN = '7651672875:AAHLRyFeC7XepKnohCyusslzYDdzhirZg_c'
 
 # 你的频道 username
-BOT_CHANNEL_USERNAME = '@bigeventsinsea'
+BOT_CHANNEL_USERNAME = target_channel
 
 # 频道欢迎语
 BOT_WELCOME_TEXT = (
-        "👋 Welcome to 东南亚大事件「大曝光」投稿机器人\n"
-        "东南亚大事件「大曝光」频道专注于东南亚最新动态资讯，\n"
-        "华人生活故事分享，海外华人求助，曝光不法份子，\n"
-        "让你看尽海內外华人酸甜苦辣。\n"
+        "👋 欢迎使用 📡东南亚曝光台 投稿机器人\n"
+        "曝光🌏各类黑幕与不良事件，直击真相🔍\n"
+        "揭开幕后丑陋面纱，让违规者无处遁形🚨\n"
+        "劲爆爆料持续不断，重磅信息不容错过📢\n"
         f"📢 频道订阅： t.me/{BOT_CHANNEL_USERNAME}\n" 
         "投稿要求：\n"
         "        文案+图（限6张），提供有效证据，\n"
@@ -94,7 +91,7 @@ source_channels = [
     '@bx1OO',                 # 28
     '@cn_zhm0',               # 29
     '@eeollse',               # 30
-    '@feilvbinya'            # 31
+    '@feilvbinya'             # 31
 ]
 
 # 是否只转发含媒体的消息

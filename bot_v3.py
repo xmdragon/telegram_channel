@@ -143,7 +143,12 @@ async def flush_buffer(key):
             f.seek(0)
             f.writelines(lines[-2000:])
 
-    review_caption = f"{combined_text}\n\n✅ 发送 /publish 🚀 发布全部\n✅ 回复 /publish 📄 只发布此条。\n🚫 回复 /reject ❌ 拒绝此条。"
+    command_text = '✅ 发送 /publish 🚀 发布全部\n✅ 回复 /publish 📄 只发此条\n🚫 回复 /reject ❌ 拒绝此条'
+    if command_text not in combined_text:
+        review_caption = f"{combined_text}\n\n{command_text}"
+    else:
+        review_caption = command_text
+
     try:
         if files:
             review_msg = await client.send_file(
@@ -193,7 +198,7 @@ async def auto_publish_pending_reviews():
                         admin_notify_entity,
                         f"⏳ 超过30分钟未审核，已自动发布 message_id={rid}"
                     )
-                    await client.delete_messages(item["review_group"], item["all_ids"])
+                    await client.delete_messages(item["review_group"], rid)
                 except Exception as e:
                     logging.error(f"自动发布失败: {e}")
                 expired.append(rid)
@@ -204,32 +209,33 @@ async def auto_publish_pending_reviews():
 @client.on(events.NewMessage)
 @safe_handler
 async def review_commands(event):
-    try:
-        chat = await event.get_chat()
-    except Exception as e:
-        logging.warning(f"检测 chat_id 失败: {e}")
-
     text = event.raw_text.strip().lower()
     reply = await event.get_reply_message()
 
     if text == "/publish":
+        # 单条发布
         if reply and reply.id in pending_reviews:
             item = pending_reviews.pop(reply.id)
             await publish_content(item["files"], item["text"])
+            # 删除所有分片消息
             await client.delete_messages(event.chat_id, item["all_ids"])
-            logging.info(f"✅ 已单条发布 message_id={item["all_ids"]}")
+            logging.info(f"✅ 已单条发布 message_ids={item['all_ids']}")
+        # 批量发布
         else:
             for rid, item in list(pending_reviews.items()):
                 await publish_content(item["files"], item["text"])
+                # 同样删除所有分片
                 await client.delete_messages(item["review_group"], item["all_ids"])
                 pending_reviews.pop(rid, None)
-                logging.info(f"✅ 已批量发布 message_id={rid}")
+                logging.info(f"✅ 已批量发布 message_ids={item['all_ids']}")
     elif text == "/reject":
         if reply and reply.id in pending_reviews:
-            await client.send_message(admin_notify_entity, f"🚫 有内容被拒绝")
+            item = pending_reviews.pop(reply.id)
+            await client.send_message(admin_notify_entity, "🚫 有内容被拒绝")
+            # 删除所有分片消息
             await client.delete_messages(event.chat_id, item["all_ids"])
-            pending_reviews.pop(reply.id, None)
-            logging.info(f"❌ 已拒绝 message_id={reply.id}")
+            logging.info(f"❌ 已拒绝 message_ids={item['all_ids']}")
+
 
 async def main():
     global review_group_entity, target_channel_entity, admin_notify_entity, source_entities
