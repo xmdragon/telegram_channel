@@ -21,6 +21,7 @@ from telegram.ext import (
 from telegram import Update as TgUpdate
 from telegram.request import HTTPXRequest
 from telegram.error import Conflict
+from telegram.error import BadRequest
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -98,6 +99,10 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message_id=msg.message_id,
                 reply_markup=kb
             )
+        except BadRequest:
+            # 如果管理员没有和 Bot 先对话，跳过该管理员
+            logger.warning(f"管理员 {admin_id} 未与 Bot 对话，跳过发送")
+            continue
         except Exception as e:
             logger.error(f"给管理员 {admin_id} 发送预览失败", exc_info=e)
             continue

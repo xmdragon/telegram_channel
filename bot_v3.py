@@ -12,7 +12,9 @@ from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
 from telethon import TelegramClient, events
 from datetime import datetime
+from telethon.errors import RPCError
 from telethon.tl.functions.channels import JoinChannelRequest
+from telethon.tl.functions.channels import GetFullChannelRequest
 
 # --- SQLite 持久化配置 ---
 PENDING_DB = "pending_reviews.db"
@@ -350,16 +352,46 @@ async def main():
     # 30分钟自动发布未审核内容
     asyncio.create_task(auto_publish_pending_reviews())
 
-    # 加入并解析实体
+    # 兼容 review_groups 可以是名称或 ID
+    raw = config.review_groups[0]
     try:
-        review_group_entity = await client.get_entity(config.review_groups[0])
-    except ValueError:
-        # 如果还没加入，就试着 join 一下
-        logging.info(f"尝试加入审核群: {config.review_groups[0]}")
-        await client(JoinChannelRequest(config.review_groups[0]))
-        logging.info(f"成功加入审核群: {config.review_groups[0]}")
-        # 再次获取
-        review_group_entity = await client.get_entity(config.review_groups[0])
+        # 1) @username：直接走 get_entity
+        if isinstance(raw, str) and raw.startswith('@'):
+            review_group_entity = await client.get_entity(raw)
+
+        else:
+            # 2) 数字 ID（包括带 -100 前缀的情况）
+            #    先统一为字符串
+            raw_s = str(raw)
+
+            # 如果是 -100 开头，就去掉 "-100"
+            if raw_s.startswith('-100'):
+                chan_id = int(raw_s[4:])
+            # 否则如果以 "-" 开头（非 supergroup），直接 abs
+            elif raw_s.startswith('-'):
+                chan_id = abs(int(raw_s))
+            else:
+                chan_id = int(raw_s)
+
+            # 用真正的正 ID 去拉取 access_hash
+            full = await client(GetFullChannelRequest(channel=chan_id))
+            review_group_entity = full.chats[0]
+    except (ValueError, RPCError) as e:
+        # 这里捕获没权限、没加入或找不到实体的各种错误
+        logging.warning(f"⚠️ 无法访问审核群 {raw}：{e}")
+        print(f"请先将机器人加入到审核群 “{raw}” 中，再重启程序。")
+        return  # 直接结束 main()
+
+    # 加入并解析实体
+    # try:
+    #     review_group_entity = await client.get_entity(config.review_groups[0])
+    # except ValueError:
+    #     # 如果还没加入，就试着 join 一下
+    #     logging.info(f"尝试加入审核群: {config.review_groups[0]}")
+    #     await client(JoinChannelRequest(config.review_groups[0]))
+    #     logging.info(f"成功加入审核群: {config.review_groups[0]}")
+    #     # 再次获取
+    #     review_group_entity = await client.get_entity(config.review_groups[0])
 
 
     target_channel_entity = await client.get_entity(config.target_channel)
