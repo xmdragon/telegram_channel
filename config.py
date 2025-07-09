@@ -7,9 +7,9 @@ import json
 #session_name = '/root/telegram_bot/my_session.session'
 
 # 正式API信息
-# api_id = 24382238
-# api_hash = 'a926790195b42a472477e7709a74fc24'
-# session_name = '/root/telegram_bot/jam16910_session.session'
+# api_id = 27250454
+# api_hash = 'ebc70ff1a03c15197229d70234c77608'
+# session_name = '/root/telegram_bot/lx20080808_session.session'
 
 # ========================
 # 目标频道

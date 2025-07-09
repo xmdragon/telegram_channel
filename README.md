@@ -42,7 +42,7 @@ vim /etc/systemed/system/bot.service
 把以下内容填进去，注意路径
 ``` ini
 [Unit]
-Description=My Telegram Bot
+Description=Telegram采集脚本
 After=network.target
 
 [Service]
@@ -54,12 +54,20 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 ```
-然后执行以下命令
+## 重新加载 systemd 并启用服务
+
+### 重新加载所有单元文件
 ``` bash
 sudo systemctl daemon-reload
-sudo systemctl enable bot
-sudo systemctl start bot
-sudo systemctl status bot
+```
+### 开机自启
+``` bash
+sudo systemctl enable telegram_bot
+```
+### 启动服务并查看状态
+``` bash
+sudo systemctl start telegram_bot
+sudo systemctl status telegram_bot
 ```
 
 ## 投稿机器人
@@ -96,9 +104,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-# 如果你想用非 root 账号，改成对应的用户名
-WorkingDirectory=/root/telegram_post
-# 激活虚拟环境后执行脚本
+
+WorkingDirectory=/root/telegram_bot
 ExecStart=/root/telegram_bot/venv/bin/python3 /root/telegram_bot/post.py
 Restart=always
 RestartSec=5
@@ -107,13 +114,6 @@ Environment=PYTHONUNBUFFERED=1
 [Install]
 WantedBy=multi-user.target
 ```
-注意
-
-    User= 可以改成你的系统普通用户，避免用 root 运行。
-
-    Restart=always 保证脚本意外退出后自动重启。
-
-    RestartSec=5 表示失败后 5 秒重启一次。
 
 ### 3. 重新加载 systemd 并启用服务
 
@@ -121,16 +121,17 @@ WantedBy=multi-user.target
 ``` bash
 sudo systemctl daemon-reload
 ```
+### 开机自启
+``` bash
+sudo systemctl enable telegram_post
+```
 ### 启动服务并查看状态
 ``` bash
 sudo systemctl start telegram_post
 sudo systemctl status telegram_post
 ```
 
-### 开机自启
-``` bash
-sudo systemctl enable telegram_post
-```
+
 
 如果 status 显示 running 并且没有错误日志，那么说明你的 Bot 已经作为服务在后台运行，并且会在每次开机时自动启动。
 ### 4. 管理服务命令
@@ -167,16 +168,11 @@ User=root
 Group=root
 WorkingDirectory=/root/telegram_bot/web
 
-# 如果有虚拟环境，需要把 PATH 改成你的 venv/bin
 Environment="PATH=/root/telegram_bot/web/venv/bin"
-
-# 启动 gunicorn 绑定在 0.0.0.0:5000 上
 ExecStart=/root/telegram_bot/web/venv/bin/gunicorn \
     --workers 3 \
     --bind 0.0.0.0:5000 \
     wsgi:app
-
-# 如果崩溃，自动重启
 Restart=always
 RestartSec=5
 
@@ -185,7 +181,7 @@ WantedBy=multi-user.target
 ```
 ##🚀 启动 / 重启服务命令
 ``` bash
-sudo systemctl daemon-reload    # 必须在修改 .service 文件后执行
+sudo systemctl daemon-reload   # 必须在修改 .service 文件后执行
 sudo systemctl enable flaskapp # 开机自启
 sudo systemctl start flaskapp  # 启动服务
 sudo systemctl status flaskapp # 查看状态
