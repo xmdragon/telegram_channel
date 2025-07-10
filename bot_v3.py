@@ -248,7 +248,7 @@ async def flush_buffer(key):
     except Exception as e:
         logging.error(f"发送审核消息失败: {e}\n{traceback.format_exc()}")
 
-async def publish_content(files, text):
+async def publish_content(files, text, rid=None):
     try:
         if files:
             await client.send_file(target_channel_entity, files, caption=text)
@@ -267,7 +267,7 @@ async def auto_publish_pending_reviews():
         for rid, item in list(pending_reviews.items()):
             if (now - item["created"]).total_seconds() > 1800:
                 try:
-                    await publish_content(item["files"], item["text"])
+                    await publish_content(item["files"], item["text"], rid)
                     await client.send_message(
                         admin_notify_entity,
                         f"⏳ 超过30分钟未审核，已自动发布 message_id={rid}"
@@ -303,15 +303,17 @@ async def review_commands(event):
         item = pending_reviews.pop(reply.id, None)
         delete_pending_review(reply.id)
         if item is None:
-            msg =	reply
-            to_text = msg.message or ""
             to_files = []
-            if msg.media:
-                path = await download_message_with_unique_name(msg)
-                to_files.append(path)
-            await	publish_content(to_files, to_text)
-            await client.send_message(admin_notify_entity, f"💡 回退发布 message_id={msg.id}")
-            await	client.delete_messages(event.chat_id, msg.id)
+            # 从审核消息里提取纯正文
+            to_text = reply.message or ""
+            # 1) 去掉审核指令行
+            to_text = re.sub(r"✅.*|\🚫.*", "", to_text)
+            # 2) 去掉 message_id
+            to_text = re.sub(r"🆔 message_id=\d+", "", to_text)
+            to_text = to_text.strip()
+            await publish_content(to_files, to_text)
+            await client.send_message(admin_notify_entity, f"💡 回退发布 message_id={reply.id}")
+            await client.delete_messages(event.chat_id, reply.id)
         else:
             await publish_content(item["files"], item["text"])
             await client.delete_messages(event.chat_id, item["all_ids"])

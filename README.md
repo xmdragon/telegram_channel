@@ -1,4 +1,4 @@
-# 电报采集机器人
+# 电报机器人
 
 ## 申请个电报号码
 用非大陆电话号码申请个电报号码，开启二步验证
@@ -9,92 +9,81 @@
 ## 申请API
 前往https://my.telegram.org，输入申请电报的电话号码，注意国际区号，输入验证码，登陆后选择“API development tools”，填写App title和Short name即可，会得到API ID 和API HASH。
 
-## 安装telethon
+## 1、采集机器人
+### 1. 安装telethon
 ``` bash
-# 安装 venv（通常已自带）
+# 安装 venv
 sudo apt update
 sudo apt install python3-venv python3-pip
 
-# 创建虚拟环境
+# 在项目目录下创建并激活虚拟环境
+cd /root/telegram_bot
 python3 -m venv venv
-
-# 进入虚拟环境
 source venv/bin/activate
 
 # 在虚拟环境中安装 telethon
 pip install telethon
 ```
-如果以上出错，可以试试这个
-``` bash
-pip install --break-system-packages telethon
-```
 
-## 采集历史数据（可选）
+### 采集历史数据（可选）
 ``` bash
-python3 /home/ubuntu/telegram_channel/get_history.py
+python3 /root/telegram_bot/get_history.py
 ```
-第一次要输入账号信息，之后会在文件下生成my_session.session文件，这个文件一定要保存好，不要给别人知道，不然账号可能有危险！！！
+第一次要输入账号信息，之后会在文件下生成*.session文件，这个文件一定要保存好，不要给别人知道，不然账号可能有危险！！！
 
-## 启动服务
-``` bash
-vim /etc/systemed/system/bot.service
-```
-把以下内容填进去，注意路径
+### 2. 编写 systemd 单元文件
+在 /etc/systemed/system/bot.service 中创建并写入：
 ``` ini
 [Unit]
-Description=Telegram采集脚本
+Description=Telegram 采集脚本
 After=network.target
 
 [Service]
-WorkingDirectory=/home/ubuntu/telegram_channel
-ExecStart=/usr/bin/python3 /home/ubuntu/telegram_channel/bot.py
+WorkingDirectory=/root/telegram_bot
+ExecStart=/root/telegram_bot/venv/bin/python3 /root/telegram_bot/bot.py
 Restart=always
 RestartSec=5
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
 ```
-## 重新加载 systemd 并启用服务
 
-### 重新加载所有单元文件
+#### 重新加载所有单元文件
 ``` bash
 sudo systemctl daemon-reload
 ```
-### 开机自启
+#### 开机自启
 ``` bash
 sudo systemctl enable telegram_bot
 ```
-### 启动服务并查看状态
+#### 启动服务并查看状态
 ``` bash
 sudo systemctl start telegram_bot
 sudo systemctl status telegram_bot
 ```
 
-## 投稿机器人
+## 2、投稿机器人
+### 1. 安装python-telegram-bot
 ``` bash
-# 1. 安装 venv 支持（若已安装可跳过）
+# 安装 venv
 sudo apt update
 sudo apt install python3-venv
 
-# 2. 在项目目录下创建并激活虚拟环境
-cd /path/to/your/bot
+# 在项目目录下创建并激活虚拟环境
+cd /root/telegram_bot
 python3 -m venv venv
 source venv/bin/activate
 
-# 3. 升级 pip（可选，但推荐）
-pip install --upgrade pip
 
-# 4. 安装所需依赖，自动拉取与 PTB 兼容的 urllib3 版本
+# 在虚拟环境中安装 python-telegram-bot
+# 安装所需依赖，自动拉取与 PTB 兼容的 urllib3 版本
 pip install urllib3==1.26.15
 pip install python-telegram-bot SQLAlchemy APScheduler
 
 ```
-## 投稿机器人服务
-### 1. 确定环境与路径
 
-假设你的 Bot 项目放在 /root/telegram_bot/ 目录，虚拟环境在 /root/telegram_bot/venv/，入口脚本是 /root/telegram_bot/post.py。
-###　2. 编写 systemd 单元文件
-
+### 2. 编写 systemd 单元文件
 在 /etc/systemd/system/telegram_post.service 中创建并写入：
 ``` ini
 [Unit]
@@ -131,41 +120,31 @@ sudo systemctl start telegram_post
 sudo systemctl status telegram_post
 ```
 
-
-
-如果 status 显示 running 并且没有错误日志，那么说明你的 Bot 已经作为服务在后台运行，并且会在每次开机时自动启动。
-### 4. 管理服务命令
-
-查看日志：
+## 3、广告关键词维护
+### 1. 安装gunicorn
 ``` bash
-sudo journalctl -u telegram_post -f
-```
-停止服务：
-``` bash
-sudo systemctl stop telegram_post
-```
-重启服务：
-``` bash
-sudo systemctl restart telegram_post
-```
+# 安装 venv
+sudo apt update
+sudo apt install python3-venv python3-pip
 
-## 网页维护广告关键词
-``` bash
+# 在项目目录下创建并激活虚拟环境
+cd /root/telegram_bot
+python3 -m venv venv
+source venv/bin/activate
+
+# 在虚拟环境中安装 telethon
 pip install gunicorn
 ```
-在你的服务器上创建service文件：
-``` bash
-/etc/systemd/system/flaskapp.service
-```
-内容为：
+### 2. 编写 systemd 单元文件
+在 /etc/systemd/system/telegramflaskapp.service 中创建并写入：
 ``` ini
 [Unit]
-Description=Flask App Service
+Description=广告关键词维护
 After=network.target
 
 [Service]
+type=simple
 User=root
-Group=root
 WorkingDirectory=/root/telegram_bot/web
 
 Environment="PATH=/root/telegram_bot/web/venv/bin"
@@ -179,19 +158,18 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 ```
-##🚀 启动 / 重启服务命令
-``` bash
-sudo systemctl daemon-reload   # 必须在修改 .service 文件后执行
-sudo systemctl enable flaskapp # 开机自启
-sudo systemctl start flaskapp  # 启动服务
-sudo systemctl status flaskapp # 查看状态
-```
-跟踪日志输出（包括 gunicorn 的 print / logging）：
-``` bash
-journalctl -u flaskapp -f
-```
-重启服务（更新代码后用）：
-``` bash
-sudo systemctl restart flaskapp
-```
+### 3. 重新加载 systemd 并启用服务
 
+### 重新加载所有单元文件
+``` bash
+sudo systemctl daemon-reload
+```
+### 开机自启
+``` bash
+sudo systemctl enable flaskapp
+```
+### 启动服务并查看状态
+``` bash
+sudo systemctl start flaskapp
+sudo systemctl status flaskapp
+```

@@ -7,9 +7,9 @@ import json
 #session_name = '/root/telegram_bot/my_session.session'
 
 # 正式API信息
-# api_id = 27250454
-# api_hash = 'ebc70ff1a03c15197229d70234c77608'
-# session_name = '/root/telegram_bot/lx20080808_session.session'
+api_id = 24382238
+api_hash = 'a926790195b42a472477e7709a74fc24'
+session_name = '/root/telegram_bot/jam16910_session.session'
 
 # ========================
 # 目标频道
@@ -98,6 +98,12 @@ source_channels = [
 ONLY_MEDIA = False  # True 表示只转发有图片/视频的消息
 
 replacements = {
+    # 0
+    # https://t.me/ksir_6688
+    '🔗  t.me/bigeventsinsea': channel_info.url,
+    '☎️ 投稿曝料：@stan0505': channel_info.contact,
+    '🔔 订阅东南亚大事件「大曝光」': channel_info.title,
+    
     # 1
     # https://t.me/miandianDS
     '🔗 https://t.me/miandianDS': channel_info.url,
