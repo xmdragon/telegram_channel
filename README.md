@@ -132,8 +132,8 @@ cd /root/telegram_bot
 python3 -m venv venv
 source venv/bin/activate
 
-# 在虚拟环境中安装 telethon
-pip install gunicorn
+# 在虚拟环境中安装 gunicorn flask
+pip install gunicorn flask
 ```
 ### 2. 编写 systemd 单元文件
 在 /etc/systemd/system/telegramflaskapp.service 中创建并写入：
