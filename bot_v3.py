@@ -209,7 +209,16 @@ async def flush_buffer(key):
             f.seek(0)
             f.writelines(lines[-2000:])
 
-    command_text = '✅ 发送 /publish 🚀 发布全部\n✅ 回复 /publish 📄 只发此条\n🚫 回复 /reject ❌ 拒绝此条'
+    # command_text = '✅ 发送 /publish 🚀 发布全部\n✅ 回复 /publish 📄 只发此条\n🚫 回复 /reject ❌ 拒绝此条'    
+    chat = await msgs[0].get_chat()
+    username = getattr(chat, 'username', None) or chat.id
+    source_url = f'https://t.me/{username}'
+    command_text = (
+        '✅ 发送 /publish 🚀 发布全部\n'
+        '✅ 回复 /publish 📄 只发此条\n'
+        '🚫 回复 /reject ❌ 拒绝此条\n'
+        f'来源频道：{source_url}'
+    )
     review_caption = combined_text
     if command_text not in combined_text:
         review_caption = f"{combined_text}\n\n{command_text}"

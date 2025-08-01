@@ -1,2 +1,3 @@
-__pychche__/
+__pycache__/
+venv/
 my_session.session

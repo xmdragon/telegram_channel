@@ -91,7 +91,7 @@ source_channels = [
     '@bx1OO',                 # 28
     '@cn_zhm0',               # 29
     '@eeollse',               # 30
-    '@feilvbinya'             # 31
+    '@feilvbingi'             # 31
 ]
 
 # 是否只转发含媒体的消息
@@ -107,6 +107,7 @@ replacements = {
     # 1
     # https://t.me/miandianDS
     '🔗 https://t.me/miandianDS': channel_info.url,
+    '🔗 https://t.me/miandianDs': channel_info.url,
     '😍投稿澄清爆料： @QianQian106': channel_info.contact,
     '☎️ 欢迎投稿爆料： @QianQian106': channel_info.contact,
     '📣 订阅东南亚大事件频道  ↓': channel_info.title,
@@ -271,6 +272,7 @@ replacements = {
     # 25
     # https://t.me/miandiandashijian168
     '📣  订阅东南亚无小事频道  ↓': channel_info.title,
+    '📣  订阅👑👑👑👑👑👑频道  ↓': channel_info.title,
     '🔗 t.me/+8rnBOqnrjxM3M2Y1': channel_info.url,
     '✅投稿澄清爆料： @dny228': channel_info.contact,
 
